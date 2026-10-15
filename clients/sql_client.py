@@ -32,6 +32,16 @@ class SQLClient:
             self._conn.close()
             self._conn = None
 
+    def _fetch(self, conn, query: str) -> pd.DataFrame:
+        """Levanta filas con un cursor y arma el DataFrame sin warnings."""
+        cur = conn.cursor()
+        try:
+            cur.execute(query)
+            columns = [c[0] for c in cur.description] if cur.description else []
+            return pd.DataFrame.from_records(cur.fetchall(), columns=columns)
+        finally:
+            cur.close()
+
     def execute_query(self, query: str) -> pd.DataFrame:
         """
         Ejecuta una consulta SQL y devuelve el resultado como DataFrame.
@@ -46,9 +56,9 @@ class SQLClient:
             pd.DataFrame: Resultado de la consulta.
         """
         if self._conn:
-            return pd.read_sql(query, self._conn)
+            return self._fetch(self._conn, query)
         conn = pyodbc.connect(self.connection_string)
         try:
-            return pd.read_sql(query, conn)
+            return self._fetch(conn, query)
         finally:
             conn.close()

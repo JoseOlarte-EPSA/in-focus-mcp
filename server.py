@@ -12,11 +12,13 @@ from auth import BearerTokenMiddleware
 from config import load_settings
 from sectors import SECTORES
 from services.grants_service import GrantsService
+from services.warehouse_service import WarehouseService
 
 
 settings = load_settings()
 
 SERVICE = GrantsService()
+WAREHOUSE_SERVICE = WarehouseService()
 
 # ── Rutas HTTP personalizadas ─────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ def _capabilities() -> dict[str, Any]:
         "tools": [
             "obtener_diccionario",
             "get_convocatorias_abiertas",
+            "get_ayudas_percibidas_bdns",
         ],
     }
 
@@ -116,6 +119,27 @@ diccionario antes de ejecutar la consulta.
 )
 def get_convocatorias_abiertas(sector_grants: str) -> list[dict]:
     return SERVICE.get_convocatorias_abiertas(sector_grants)
+
+
+@mcp.tool(
+    description="""
+    Obtiene el listado completo y detallado de las ayudas o subvenciones percibidas por una cuenta específica según su NIF (histórico completo disponible en BDNS).
+
+    Args:
+        nif (str): NIF fiscal de la cuenta.
+
+    Returns:
+        Lista de dict con claves:
+        - NIF: Código fiscal del beneficiario
+        - BENEFICIARIO: Nombre del beneficiario
+        - ANUNCIO: Descripción de la convocatoria/subvención
+        - ORGANISMO: Organismo concedente
+        - FONDOS_A_PRESTAMO: Importe en préstamos
+        - FONDOS_A_SUBVENCIÓN: Importe en subvenciones
+    """
+)
+def get_ayudas_percibidas_bdns(nif: str) -> list[dict]:
+    return WAREHOUSE_SERVICE.get_detalle_ayudas(nif.strip().upper())
 
 
 # ── App con middleware opcional ───────────────────────────────────────────────
