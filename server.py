@@ -12,6 +12,7 @@ from auth import BearerTokenMiddleware
 from config import load_settings
 from sectors import SECTORES
 from services.grants_service import GrantsService
+from services.linkup_service import LinkupService
 from services.warehouse_service import WarehouseService
 
 
@@ -19,6 +20,7 @@ settings = load_settings()
 
 SERVICE = GrantsService()
 WAREHOUSE_SERVICE = WarehouseService()
+LINKUP_SERVICE = LinkupService(settings.linkup_api_key)
 
 # ── Rutas HTTP personalizadas ─────────────────────────────────────────────────
 
@@ -37,6 +39,7 @@ def _capabilities() -> dict[str, Any]:
             "obtener_diccionario",
             "get_convocatorias_abiertas",
             "get_ayudas_percibidas_bdns",
+            "buscar_web",
         ],
     }
 
@@ -140,6 +143,30 @@ def get_convocatorias_abiertas(sector_grants: str) -> list[dict]:
 )
 def get_ayudas_percibidas_bdns(nif: str) -> list[dict]:
     return WAREHOUSE_SERVICE.get_detalle_ayudas(nif.strip().upper())
+
+
+@mcp.tool(
+    description="""
+    Realiza una busqueda web y devuelve una respuesta redactada con sus fuentes (Linkup).
+
+    Use esta herramienta para consultas generales de informacion que no esten cubiertas por las
+    herramientas internas de convocatorias, ayudas percibidas o el diccionario de sectores
+    (p.ej. noticias del sector, contexto de mercado, datos publicos, empresas, etc.).
+
+    Args:
+        query (str): Texto a buscar. Puede ser en espanol o ingles, en forma de frase natural
+                     o de pregunta. Ej.: "principales fabricantes de componentes aeronauticos en Europa".
+
+    Returns:
+        dict con claves:
+        - query: la consulta enviada.
+        - ok: True si la busqueda se ejecuto correctamente; False en caso contrario.
+        - result: (solo si ok=True) respuesta redactada con su lista de fuentes.
+        - error: (solo si ok=False) descripcion legible del problema.
+    """
+)
+def buscar_web(query: str) -> dict[str, Any]:
+    return LINKUP_SERVICE.search(query)
 
 
 # ── App con middleware opcional ───────────────────────────────────────────────

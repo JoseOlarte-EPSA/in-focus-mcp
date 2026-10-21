@@ -20,6 +20,7 @@ class Settings:
     transport: str
     auth_mode: str
     bearer_token: str
+    linkup_api_key: str
 
     def validate(self) -> "Settings":
         if self.auth_mode not in {"none", "bearer"}:
@@ -43,4 +44,7 @@ def load_settings() -> Settings:
         transport=(os.getenv("MCP_TRANSPORT", "streamable-http").strip() or "streamable-http"),
         auth_mode=os.getenv("MCP_AUTH_MODE", "none").strip().lower(),
         bearer_token=os.getenv("MCP_BEARER_TOKEN", "").strip(),
+        # Opcional: solo necesario para la herramienta de busqueda web (Linkup).
+        # Su ausencia no rompe el arranque; la tool reportara error si se usa sin key.
+        linkup_api_key=os.getenv("LINKUP_API_KEY", "").strip(),
     ).validate()

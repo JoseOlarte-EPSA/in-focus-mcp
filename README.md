@@ -2,12 +2,13 @@
 
 Servidor MCP (Model Context Protocol) para consultar convocatorias de subvenciones abiertas por sector sobre la base de datos **GRANTS** (Azure SQL Server).
 
-Proyecto extraído del PoC `PoC---MCP`, recortado a dos herramientas:
+Proyecto extraído del PoC `PoC---MCP`:
 
 | Herramienta MCP | Descripción |
 | --- | --- |
 | `obtener_diccionario` | Devuelve el diccionario estático de sectores (`CRM` → `GRANTS`) en JSON. Se usa para normalizar el sector que aporta el usuario antes de consultar. |
 | `get_convocatorias_abiertas` | Consulta las convocatorias de subvenciones abiertas (status "Abierta" / "Pre-abierta") para un sector normalizado y país España. Retorna hasta 15 resultados con campos `TÍTULO` y `SECTOR`. |
+| `buscar_web` | Realiza una búsqueda web vía **Linkup** y devuelve una respuesta redactada con sus fuentes. Útil para consultas generales no cubiertas por las herramientas internas (noticias del sector, contexto de mercado, datos públicos, empresas…). Requiere `LINKUP_API_KEY`. |
 
 ## Estructura
 
@@ -25,12 +26,15 @@ IN Focus - MCP/
 ├── queries/
 │   └── grants.py          # Plantilla SQL GRANTS_BY_SECTOR
 ├── services/
-│   └── grants_service.py  # GrantsService: saneamiento, ejecución, remap de columnas
-├── .env.example           # Plantilla de variables de entorno
+│   ├── grants_service.py    # GrantsService: saneamiento, ejecución, remap de columnas
+│   └── linkup_service.py    # LinkupService: cliente de búsqueda web (Linkup) con respuesta + fuentes
+├── .env.example             # Plantilla de variables de entorno
 └── requirements.txt
 ```
 
-Flujo: herramienta → `GrantsService.get_convocatorias_abiertas` → plantilla SQL sanitizada → `GRANTSClient` (ODBC) → DataFrame → lista de dicts.
+Flujo GRANTS: herramienta → `GrantsService.get_convocatorias_abiertas` → plantilla SQL sanitizada → `GRANTSClient` (ODBC) → DataFrame → lista de dicts.
+
+Flujo web: herramienta `buscar_web` → `LinkupService.search(query)` → `LinkupClient.search(..., output_type="sourcedAnswer")` → dict `{ query, ok, result }`.
 
 ## Requisitos
 
@@ -71,6 +75,7 @@ Completa `.env`:
 | `GRANTS_USERNAME` | Sí | Usuario SQL. |
 | `GRANTS_PASSWORD` | Sí | Contraseña SQL. |
 | `SQL_DRIVER` | No | Driver ODBC. Defecto: `ODBC Driver 18 for SQL Server`. |
+| `LINKUP_API_KEY` | Solo para `buscar_web` | API key de Linkup (https://linkup.so). Sin ella, el servidor arranca pero esa herramienta devuelve un error claro. |
 
 Los nombres exactos que lee el código son `GRANTS_SERVER` / `GRANTS_DATABASE` / `GRANTS_USERNAME` / `GRANTS_PASSWORD` (no confundir con nombres alternativos documentados en el PoC original).
 
@@ -137,6 +142,8 @@ Ejemplo de configuración tipo (Claude Desktop / cliente compatible):
 | Resultado vacío | El sector no existe en `Sectors.Name` o no hay convocatorias abiertas para ese sector en España. Probar con valores del diccionario (p.ej. `Energy`). |
 | `MCP_BEARER_TOKEN es obligatorio...` | `MCP_AUTH_MODE=bearer` sin token. Rellenarlo o cambiar el modo a `none`. |
 | 401 en `/mcp` | Faltan o erróneas cabeceras `Authorization` cuando el auth es `bearer`. |
+| `buscar_web` → error "LINKUP_API_KEY no configurada" | Falta la key de Linkup en `.env`. Añade `LINKUP_API_KEY=<tu-key>` (https://linkup.so) y reinicia. El servidor arranca igual aunque falte; solo esa herramienta devuelve este aviso. |
+| `buscar_web` → error de autenticación/401 de Linkup | La key presente es inválida o caducada. Verifica que esté completa y con créditos suficientes en tu cuenta Linkup. |
 
 ## Proveniencia
 
