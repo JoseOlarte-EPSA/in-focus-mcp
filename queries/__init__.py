@@ -1,4 +1,9 @@
 from queries.bdns import DETALLE_DE_AYUDAS
-from queries.grants import GRANTS_BY_SECTOR
+from queries.grants import GRANTS_BY_SECTOR, GRANTS_BY_SECTOR_REGION, GRANTS_REGIONS
 
-__all__ = ["DETALLE_DE_AYUDAS", "GRANTS_BY_SECTOR"]
+__all__ = [
+    "DETALLE_DE_AYUDAS",
+    "GRANTS_BY_SECTOR",
+    "GRANTS_BY_SECTOR_REGION",
+    "GRANTS_REGIONS",
+]

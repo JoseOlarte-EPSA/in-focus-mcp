@@ -7,7 +7,8 @@ Proyecto extraído del PoC `PoC---MCP`:
 | Herramienta MCP | Descripción |
 | --- | --- |
 | `obtener_diccionario` | Devuelve el diccionario estático de sectores (`CRM` → `GRANTS`) en JSON. Se usa para normalizar el sector que aporta el usuario antes de consultar. |
-| `get_convocatorias_abiertas` | Consulta las convocatorias de subvenciones abiertas (status "Abierta" / "Pre-abierta") para un sector normalizado y país España. Retorna hasta 15 resultados con campos `TÍTULO` y `SECTOR`. |
+| `get_convocatorias_abiertas` | Consulta las convocatorias de subvenciones abiertas (status "Abierta" / "Pre-abierta") para un sector normalizado y país España, opcionalmente restringidas a una región (valores de `get_regions`, confirmada con el usuario). Retorna hasta 15 resultados con campos `TÍTULO` y `SECTOR`. |
+| `get_regions` | Consulta las regiones disponibles en la BD GRANTS para España (tabla `Locations`). Retorna la lista de nombres de región (`REGIÓN`) sin duplicados, ordenada alfabéticamente. |
 | `buscar_web` | Realiza una búsqueda web vía **Linkup** y devuelve una respuesta redactada con sus fuentes. Útil para consultas generales no cubiertas por las herramientas internas (noticias del sector, contexto de mercado, datos públicos, empresas…). Requiere `LINKUP_API_KEY`. |
 
 ## Estructura
@@ -24,7 +25,8 @@ IN Focus - MCP/
 │   ├── sql_client.py      # SQLClient: context manager + pd.read_sql
 │   └── grants_client.py   # GRANTSClient: cadena ODBC para GRANTS
 ├── queries/
-│   └── grants.py          # Plantilla SQL GRANTS_BY_SECTOR
+│   ├── bdns.py            # Plantilla SQL DETALLE_DE_AYUDAS (warehouse Fabric)
+│   └── grants.py          # Plantillas SQL GRANTS_BY_SECTOR y GRANTS_REGIONS
 ├── services/
 │   ├── grants_service.py    # GrantsService: saneamiento, ejecución, remap de columnas
 │   └── linkup_service.py    # LinkupService: cliente de búsqueda web (Linkup) con respuesta + fuentes
@@ -129,8 +131,9 @@ Ejemplo de configuración tipo (Claude Desktop / cliente compatible):
 
 1. El agente llama a `obtener_diccionario` y obtiene el mapeo `CRM → GRANTS`.
 2. Normaliza el sector indicado por el usuario contra la columna `CRM` (match exacto, similitud textual o fallback tal cual).
-3. Llama a `get_convocatorias_abiertas(sector_grants=<sector normalizado>)`.
-4. Recibe una lista de `{ "TÍTULO": ..., "SECTOR": ... }` (máximo 15, ordenadas por estado y fecha de creación).
+3. Si el usuario quiere filtrar por región: llama a `get_regions` y **confirma con el usuario** el nombre exacto de la región a usar (debe coincidir literalmente con la lista).
+4. Llama a `get_convocatorias_abiertas(sector_grants=<sector normalizado>, region_grants=<región o omitir>)`. Sin región, busca en España completa.
+5. Recibe una lista de `{ "TÍTULO": ..., "SECTOR": ... }` (máximo 15, ordenadas por estado y fecha de creación).
 
 ## Solución de problemas
 
@@ -139,7 +142,7 @@ Ejemplo de configuración tipo (Claude Desktop / cliente compatible):
 | `KeyError: 'GRANTS_SERVER'` al arrancar | Falta alguna variable `GRANTS_*` en `.env`. Completarlas. |
 | `pyodbc.InterfaceError` / "Unable to connect: error in datasource" | Driver ODBC no instalado o nombre distinto → comprobar con `python -c "import pyodbc; print(pyodbc.drivers())"` y ajustar `SQL_DRIVER`. También revisar firewall/red (Azure SQL requiere IP permitida y puerto 1433). |
 | `Login failed for user` | Credenciales `GRANTS_USERNAME`/`GRANTS_PASSWORD` incorrectos. |
-| Resultado vacío | El sector no existe en `Sectors.Name` o no hay convocatorias abiertas para ese sector en España. Probar con valores del diccionario (p.ej. `Energy`). |
+| Resultado vacío | El sector no existe en `Sectors.Name`, no hay convocatorias abiertas para ese sector en España, o la región no coincide exactamente con `Locations.Name` (el filtro regional es de igualación literal). Probar con valores del diccionario (p.ej. `Energy`) y con nombres literales de `get_regions`. |
 | `MCP_BEARER_TOKEN es obligatorio...` | `MCP_AUTH_MODE=bearer` sin token. Rellenarlo o cambiar el modo a `none`. |
 | 401 en `/mcp` | Faltan o erróneas cabeceras `Authorization` cuando el auth es `bearer`. |
 | `buscar_web` → error "LINKUP_API_KEY no configurada" | Falta la key de Linkup en `.env`. Añade `LINKUP_API_KEY=<tu-key>` (https://linkup.so) y reinicia. El servidor arranca igual aunque falte; solo esa herramienta devuelve este aviso. |

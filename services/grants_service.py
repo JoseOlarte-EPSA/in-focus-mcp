@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from clients.grants_client import GRANTSClient
-from queries.grants import GRANTS_BY_SECTOR
+from queries.grants import GRANTS_BY_SECTOR, GRANTS_BY_SECTOR_REGION, GRANTS_REGIONS
 
 
 class GrantsService:
@@ -22,6 +22,21 @@ class GrantsService:
                 "columns_map": {
                     "TÍTULO": "Title",
                     "SECTOR": "Name",
+                },
+                "client_type": "grants",
+            },
+            "convocatorias_abiertas_region": {
+                "template": GRANTS_BY_SECTOR_REGION,
+                "columns_map": {
+                    "TÍTULO": "Title",
+                    "SECTOR": "Name",
+                },
+                "client_type": "grants",
+            },
+            "regiones": {
+                "template": GRANTS_REGIONS,
+                "columns_map": {
+                    "REGIÓN": "Name",
                 },
                 "client_type": "grants",
             },
@@ -57,5 +72,16 @@ class GrantsService:
 
         return df.to_dict(orient="records")
 
-    def get_convocatorias_abiertas(self, SECTOR_GRANTS: str) -> list[dict]:
-        return self.execute_query("convocatorias_abiertas", SECTOR_GRANTS=SECTOR_GRANTS)
+    def get_convocatorias_abiertas(
+        self, SECTOR_GRANTS: str, REGION_GRANTS: str | None = None
+    ) -> list[dict]:
+        if not REGION_GRANTS:
+            return self.execute_query("convocatorias_abiertas", SECTOR_GRANTS=SECTOR_GRANTS)
+        return self.execute_query(
+            "convocatorias_abiertas_region",
+            SECTOR_GRANTS=SECTOR_GRANTS,
+            REGION_GRANTS=REGION_GRANTS,
+        )
+
+    def get_regions(self) -> list[dict]:
+        return self.execute_query("regiones")
